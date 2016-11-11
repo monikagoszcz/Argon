@@ -57,7 +57,7 @@ void setInitialState(parameters &parameters, state & state)
 void setInitialEnergies(parameters &parameters, vector<atom> & atoms)
 {
 	double kB = 0.00831; 
-	for(int i = 0; i < (int) atoms.size(); i++)
+	for(int i = 0; i < (int) atoms.size(); ++i)
 	{
 		atoms[i].E ={- 0.5 * kB * parameters.T_0 * log(getUniRandom()) , 
 		- 0.5 * kB * parameters.T_0 * log(getUniRandom()), 
@@ -71,15 +71,16 @@ void setInitialLocation(parameters &parameters, vector<atom> & atoms)
 			{parameters.a / 2.0, parameters.a * sqrt(3.0) / 2.0, 0},
 			{parameters.a / 2.0, parameters.a * sqrt(3.0) / 6.0, parameters.a * sqrt(2.0 / 3.0)}};
 
-	double N = pow(parameters.n, 3);
+	double N = parameters.n * parameters.n * parameters.n;
 	atoms.resize((int)N);
 	int i = 0;
-	for(int i0 = 0; i0 < parameters.n; i0++)
+	for(int i0 = 0; i0 < parameters.n; ++i0)
 	{
-		for(int i1 = 0; i1 < parameters.n; i1++)
+		for(int i1 = 0; i1 < parameters.n; ++i1)
 		{
-			for(int i2 = 0; i2 < parameters.n; i2++)
+			for(int i2 = 0; i2 < parameters.n; ++i2)
 			{
+				i = static_cast<int>( i0 + i1 * parameters.n + i2 * parameters.n * parameters.n);
 				atoms[i].r = {(i0 - (parameters.n-1)/2.) * b[0].x 
 					    + (i1 - (parameters.n-1)/2.) * b[1].x 
 					    + (i2 - (parameters.n-1)/2.) * b[2].x, 
@@ -89,7 +90,6 @@ void setInitialLocation(parameters &parameters, vector<atom> & atoms)
 					(i0 - (parameters.n-1)/2.) * b[0].z 
 				      + (i1 - (parameters.n-1)/2.) * b[1].z 
 				      + (i2 - (parameters.n-1)/2.) * b[2].z};
-				i++;
 			}
 		}
 
@@ -100,7 +100,7 @@ void setInitialLocation(parameters &parameters, vector<atom> & atoms)
 void setInitialMomentum(parameters &parameters, vector<atom> & atoms)
 {
 	coor Psum = {0};
-	for(int i = 0; i < (int) atoms.size(); i++)
+	for(int i = 0; i < (int) atoms.size(); ++i)
 	{
 		atoms[i].p = {
 			getPlusOrMinus() * sqrt(2.*parameters.m*atoms[i].E.x),
@@ -110,7 +110,7 @@ void setInitialMomentum(parameters &parameters, vector<atom> & atoms)
 		Psum.y += atoms[i].p.y;
 		Psum.z += atoms[i].p.z;
 	}
-	for(int i = 0; i < (int) atoms.size(); i++)
+	for(int i = 0; i < (int) atoms.size(); ++i)
 	{
 		atoms[i].p = {
 			atoms[i].p.x - Psum.x / (double)atoms.size(),
@@ -126,7 +126,7 @@ void setPotentialForcesAndPressure(parameters &parameters, state & state)
 	state.V = 0;
 	state.T = 0;
 	state.P = 0;
-	for(int i = 0; i < N; i++)
+	for(int i = 0; i < N; ++i)
 	{
 		state.atoms[i].F = {0,0,0};
 	}
@@ -135,16 +135,16 @@ void setPotentialForcesAndPressure(parameters &parameters, state & state)
 	coor Fis = {};
 	coor Fip = {};
 
-	for(int i = 0; i < N; i++)
+	for(int i = 0; i < N; ++i)
 	{
 		state.V += calcPotentialS(parameters, calcVectorModulus(state.atoms[i].r)); //potencjal od scianek (10)
 		Fis = calcForcesS(parameters, state.atoms[i].r); //sily odpychania od scianek (14)
 		state.atoms[i].F = addVectors(state.atoms[i].F, Fis ); //akumulacja do F
-		state.P += calcVectorModulus(Fis) / 4. / PI / parameters.L / parameters.L; //akumulacja cisnienia chwilowego (15)
+		state.P += calcVectorModulus(Fis); //akumulacja cisnienia chwilowego (15)
 	
 		if (i > 0)
 		{
-			for(int j = 0; j < i; j++)
+			for(int j = 0; j < (i-1); ++j)
 			{
 				rij = calcVectorModulus( subtractVectors(state.atoms[i].r, state.atoms[j].r));
 				state.V += calcPotentialP(parameters, rij); //obliczanie potencjalu par (9) i akumulacja do V
@@ -155,6 +155,7 @@ void setPotentialForcesAndPressure(parameters &parameters, state & state)
 		}
 
 	}
+	state.P /= ( 4. * PI * parameters.L * parameters.L);
 }
 
 double calcPotentialS(parameters &parameters, double ri)
@@ -174,8 +175,9 @@ double calcPotentialS(parameters &parameters, double ri)
 double calcPotentialP(parameters &parameters, double rij)
 {
 	double rRatio = parameters.R/rij;
+	double rRatioPow6 = rRatio * rRatio * rRatio * rRatio * rRatio * rRatio;
 	double vP = 0; 
-	vP = parameters.e * (pow( rRatio , 12 ) - 2.0 * pow(rRatio, 6) );
+	vP = parameters.e * (rRatioPow6 * rRatioPow6 - 2.0 * rRatioPow6 );
 	return vP;
 }
 coor calcForcesP(parameters &parameters, coor ri, coor rj)
@@ -183,7 +185,8 @@ coor calcForcesP(parameters &parameters, coor ri, coor rj)
 	coor riMinusrj = subtractVectors(ri, rj); 
 	double rij = calcVectorModulus( riMinusrj );
 	double rRatio = parameters.R/rij;
-	double A = 12. * parameters.e * (pow( rRatio , 12 ) - pow(rRatio, 6) ) / rij / rij;
+	double rRatioPow6 = rRatio * rRatio * rRatio * rRatio * rRatio * rRatio;
+	double A = (12. * parameters.e * (rRatioPow6 * rRatioPow6 - rRatioPow6 ) )/ (rij * rij);
 	coor Fij = {A * riMinusrj.x, A * riMinusrj.x, A * riMinusrj.x};
 	return Fij;
 }
@@ -195,7 +198,7 @@ coor calcForcesS(parameters &parameters, coor ri)
 
 	if(mri >= parameters.L)
 	{
-		double A  = parameters.f * (parameters.L - mri)  / mri;
+		double A  = parameters.f * (mri - parameters.L)  / mri;
 		fS = {ri.x * A, ri.y * A, ri.z * A};
 	}
 	return fS;
@@ -204,7 +207,7 @@ coor calcForcesS(parameters &parameters, coor ri)
 void simulate(parameters &parameters, state & state,ofstream & outputFileXYZ, ofstream & outputFileChar)
 {
 	double t = 0;
-	for(int s = 1; s <= (parameters.S_0 + parameters.S_d); s++)
+	for(int s = 1; s <= (parameters.S_0 + parameters.S_d); ++s)
 	{
 		t = s*parameters.tau;
 		updateState(parameters, state);
@@ -223,7 +226,7 @@ void simulate(parameters &parameters, state & state,ofstream & outputFileXYZ, of
 void updateState(parameters &parameters, state & state)
 {
 
-	for(int i = 0; i < (int) state.atoms.size(); i++)
+	for(int i = 0; i < (int) state.atoms.size(); ++i)
 	{
 		state.atoms[i].p = 
 		{
@@ -239,7 +242,7 @@ void updateState(parameters &parameters, state & state)
 		};
 	}
 	setPotentialForcesAndPressure(parameters, state);
-	for(int i = 0; i < (int) state.atoms.size(); i++)
+	for(int i = 0; i < (int) state.atoms.size(); ++i)
 	{
 		state.atoms[i].p = 
 		{
@@ -248,6 +251,7 @@ void updateState(parameters &parameters, state & state)
 			state.atoms[i].p.z  + 0.5 * state.atoms[i].F.z * parameters.tau
 		};	
 	}
+	setPotentialForcesAndPressure(parameters, state);
 	setEnergyAndTemperature(parameters, state);
 }
 
@@ -258,12 +262,15 @@ void setEnergyAndTemperature(parameters &parameters, state & state)
 	double N = pow(parameters.n, 3);
 	state.H = 0;
 
-	for(int i = 0; i < N; i++)
+	for(int i = 0; i < N; ++i)
 	{
-		state.H += calcVectorModulus(state.atoms[i].p) * calcVectorModulus(state.atoms[i].p) / 2. / parameters.m;
+		state.H += calcVectorModulus(state.atoms[i].p) * calcVectorModulus(state.atoms[i].p);
 	}
 
-	state.T = state.H * 2. / 3. / N / kB;
+
+	state.H /= (2. * parameters.m);
+
+	state.T = (state.H * 2.) / (3. * N * kB);
 	state.H += state.V;
 }
 
@@ -282,7 +289,7 @@ int getPlusOrMinus()
 double calcVectorModulus(coor vector)
 {
 	double modulus = 0;
-	modulus = sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+	modulus = sqrt((vector.x * vector.x) + (vector.y * vector.y) + (vector.z * vector.z));
 	return modulus;
 }
 
@@ -308,7 +315,7 @@ void outputXYZ(vector<atom> & atoms, ofstream & outputFile)
 {
 	outputFile << atoms.size() << endl << "comment"<< endl;
 
-	for(int i = 0; i < (int) atoms.size(); i++)
+	for(int i = 0; i < (int) atoms.size(); ++i)
 	{
 		outputFile << "Ar " << atoms[i].r.x << " " << atoms[i].r.y << " " << atoms[i].r.z << endl;
 	}
@@ -319,7 +326,7 @@ void outputMomentum(vector<atom> & atoms)
 	ofstream outputFile;
 	outputFile.open("outputMomentum.txt");
 
-	for(int i = 0; i < (int) atoms.size(); i++)
+	for(int i = 0; i < (int) atoms.size(); ++i)
 	{
 		outputFile << atoms[i].p.x << "\t" << atoms[i].p.y << "\t" << atoms[i].p.z << endl;
 	}
