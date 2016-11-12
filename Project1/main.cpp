@@ -6,28 +6,30 @@
  */
 
 #include "argon.h"
+#include "coor.h"
 
-int main(int argc, char* argv[])
+int main(int /* argc */, char* /* argv */[])
 {
-state state;
+    State state;
+    Parameters parameters = getParameters("data.txt");
 
-parameters parameters = getParameters("data2.txt");
-setInitialState(parameters, state); 
+    setInitialState(parameters, state);
 
-ofstream outputFileXYZ;
-ofstream outputFileChar;
-outputFileXYZ.open("output.xyz");
-outputFileChar.open("output.txt");
-outputFileChar << "t" << "\t" << "H" << "\t" << "V" << "\t" << "T" << "\t " << "P" << endl;
-outputXYZ(state.atoms, outputFileXYZ);
-outputMomentum(state.atoms);
+    std::ofstream outputFileXYZ;
+    outputFileXYZ.open("output.xyz");
 
-simulate(parameters, state, outputFileXYZ, outputFileChar);
+	std::ofstream outputFileChar;
+    outputFileChar.open("output.txt");
 
-outputFileXYZ.close();
-outputFileChar.close();
+    outputFileChar << "t" << "\t" << "H" << "\t" << "V" << "\t" << "T" << "\t " << "P" << std::endl;
 
-return 0;
+    outputXYZ(state.Atoms, outputFileXYZ);
+
+    outputMomentum(state.Atoms);
+
+    simulate(parameters, state, outputFileXYZ, outputFileChar);
+
+    return 0;
 }
 
 

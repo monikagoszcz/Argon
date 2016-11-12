@@ -5,85 +5,77 @@
  *      Author: mongos
  */
 
-#ifndef ARGON_H_
-#define ARGON_H_
+#ifndef _argon_h_
+#define _argon_h_
 
-
+#include <fstream>
 #include <iostream>
 #include <string>
-#include <fstream>
 #include <vector>
 
-using namespace std;
+#include "coor.h"
 
-struct coor
+struct Atom
 {
-	double x;
-	double y;
-	double z;
+    Coor r;
+    Coor p;
+    Coor E;
+    Coor F;
+
 };
 
-struct atom
+struct Parameters
 {
-	coor r;
-	coor p;
-	coor E;
-	coor F;
-	
+    double n;
+    double m;
+    double e;
+    double R;
+    double f;
+    double L;
+    double a;
+    double T_0;
+    double tau;
+    double S_0;
+    double S_d;
+    int S_out;
+    int S_xyz;
+	double N;
 };
 
-struct parameters
+struct State
 {
-	double n;
-	double m;
-	double e;
-	double R;
-	double f;
-	double L;
-	double a;
-	double T_0;
-	double tau;
-	double S_0;
-	double S_d;
-	int S_out;
-	int S_xyz;
+    double V;
+    double P;
+    double H;
+    double T;
+    std::vector<Atom> Atoms;
 };
 
-struct state
-{
-	double V;
-	double P;
-	double H;
-	double T;
-	vector<atom> atoms; 
-};
+Parameters getParameters(std::string inputFileName);
 
-parameters getParameters(string inputFileName);
+void setInitialState(Parameters &Parameters, State & state);
+void setInitialLocation(Parameters &Parameters, std::vector<Atom> &Atoms);
+void setInitialEnergies(Parameters &Parameters, std::vector<Atom> &Atoms);
+void setInitialMomentum(Parameters &Parameters, std::vector<Atom> &Atoms);
 
-void setInitialState(parameters &parameters, state & state);
-void setInitialLocation(parameters &parameters, vector<atom> & atoms);
-void setInitialEnergies(parameters &parameters, vector<atom> & atoms);
-void setInitialMomentum(parameters &parameters, vector<atom> & atoms);
-void setPotentialForcesAndPressure(parameters &parameters, state & state);
-double calcPotentialS(parameters &parameters, double ri);
-double calcPotentialP(parameters &parameters, double rij);
-coor calcForcesP(parameters &parameters, coor ri, coor rj);
-coor calcForcesS(parameters &parameters, coor ri);
+void setPotentialForcesAndPressure(Parameters &Parameters, State & state);
 
-void simulate(parameters &parameters, state & state, ofstream & outputFileXYZ, ofstream & outputFileChar);
+double calcPotentialS(Parameters &Parameters, double ri);
+double calcPotentialP(Parameters &Parameters, double rij);
+Coor calcForcesP(Parameters &Parameters, Coor ri, Coor rj);
+Coor calcForcesS(Parameters &Parameters, Coor ri);
 
-void updateState(parameters &parameters, state & state);
-void setEnergyAndTemperature(parameters &parameters, state & state);
+void simulate(Parameters &Parameters, State &state, std::ofstream &outputFileXYZ, std::ofstream &outputFileChar);
+
+void updateState(Parameters &Parameters, State & state);
+void setEnergyAndTemperature(Parameters &Parameters, State & state);
 
 double getUniRandom();
 int getPlusOrMinus();
-double calcVectorModulus(coor vector);
-coor subtractVectors(coor v1, coor v2);
-coor addVectors(coor v1, coor v2);
-coor calcOppositeVector(coor v);
 
-void outputXYZ(vector<atom> & atoms, ofstream & outputFile);
-void outputChar(state & state, ofstream & outputFile, double & t);
-void outputMomentum(vector<atom> & atoms);
+void outputXYZ(std::vector<Atom> &Atoms, std::ofstream &outputFile);
+void outputChar(State &state, std::ofstream &outputFile, double &t);
+void outputMomentum(std::vector<Atom> &Atoms);
 
-#endif /* ARGON_H_ */
+#endif 
+
