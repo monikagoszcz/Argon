@@ -53,22 +53,22 @@ struct State
 
 Parameters getParameters(std::string inputFileName);
 
-void setInitialState(Parameters &Parameters, State & state);
-void setInitialLocation(Parameters &Parameters, std::vector<Atom> &Atoms);
-void setInitialEnergies(Parameters &Parameters, std::vector<Atom> &Atoms);
-void setInitialMomentum(Parameters &Parameters, std::vector<Atom> &Atoms);
+void setInitialState(const Parameters &Parameters, State & state);
+void setInitialLocation(const Parameters &Parameters, std::vector<Atom> &Atoms);
+void setInitialEnergies(const Parameters &Parameters, std::vector<Atom> &Atoms);
+void setInitialMomentum(const Parameters &Parameters, std::vector<Atom> &Atoms);
 
-void setPotentialForcesAndPressure(Parameters &Parameters, State & state);
+void setPotentialForcesAndPressure(const Parameters &Parameters, State & state);
 
-double calcPotentialS(Parameters &Parameters, double ri);
-double calcPotentialP(Parameters &Parameters, double rij);
-Coor calcForcesP(Parameters &Parameters, Coor ri, Coor rj);
-Coor calcForcesS(Parameters &Parameters, Coor ri);
+double calcPotentialS(const Parameters &Parameters, double ri);
+double calcPotentialP(const Parameters &parameters, double rRatioPow6);
+Coor calcForcesP(const Parameters &parameters, Coor ri, Coor rj, double rRatioPow6);
+Coor calcForcesS(const Parameters &Parameters, Coor ri, double mri);
 
-void simulate(Parameters &Parameters, State &state, std::ofstream &outputFileXYZ, std::ofstream &outputFileChar);
+void simulate(const Parameters &Parameters, State &state, std::ofstream &outputFileXYZ, std::ofstream &outputFileChar);
 
-void updateState(Parameters &Parameters, State & state);
-void setEnergyAndTemperature(Parameters &Parameters, State & state);
+void updateState(const Parameters &Parameters, State & state);
+void setEnergyAndTemperature(const Parameters &Parameters, State & state);
 
 double getUniRandom();
 int getPlusOrMinus();

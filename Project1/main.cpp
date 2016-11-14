@@ -21,7 +21,7 @@ int main(int /* argc */, char* /* argv */[])
 	std::ofstream outputFileChar;
     outputFileChar.open("output.txt");
 
-    outputFileChar << "t" << "\t" << "H" << "\t" << "V" << "\t" << "T" << "\t " << "P" << std::endl;
+    outputFileChar << "t" << "\t" << "H" << "\t" << "V" << "\t" << "P" << "\t " << "T" << std::endl;
 
     outputXYZ(state.Atoms, outputFileXYZ);
 

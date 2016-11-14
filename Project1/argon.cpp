@@ -6,7 +6,7 @@
  */
 
 #include "argon.h"
-#include "coor.h"
+#include "Coor.h"
 
 #include <cassert>
 #include <math.h>
@@ -55,7 +55,7 @@ Parameters getParameters(std::string inputFileName)
     return param;
 }
 
-void setInitialState(Parameters &parameters, State &state)
+void setInitialState(const Parameters &parameters, State &state)
 {
     setInitialLocation(parameters, state.Atoms);
     setInitialEnergies(parameters, state.Atoms);
@@ -63,7 +63,7 @@ void setInitialState(Parameters &parameters, State &state)
     setPotentialForcesAndPressure(parameters, state);
 }
 
-void setInitialEnergies(Parameters &parameters, vector<Atom> & Atoms)
+void setInitialEnergies(const Parameters &parameters, vector<Atom> & Atoms)
 {
     for(auto & Atom : Atoms)
     {
@@ -73,15 +73,14 @@ void setInitialEnergies(Parameters &parameters, vector<Atom> & Atoms)
     }
 }
 
-void setInitialLocation(Parameters &parameters, vector<Atom> &Atoms)
+void setInitialLocation(const Parameters &parameters, vector<Atom> &Atoms)
 {
     Coor b[3] = {{parameters.a, 0, 0},
                  {parameters.a / 2.0, parameters.a * sqrt(3.0) / 2.0, 0},
                  {parameters.a / 2.0, parameters.a * sqrt(3.0) / 6.0, parameters.a * sqrt(2.0 / 3.0)}};
 
     Atoms.resize(static_cast<int>(parameters.N));
-    int i = 0;
-
+	int i = 0; 
     for(int i0 = 0; i0 < parameters.n; i0++)
         for(int i1 = 0; i1 < parameters.n; i1++)
             for(int i2 = 0; i2 < parameters.n; i2++, i++)
@@ -99,7 +98,7 @@ void setInitialLocation(Parameters &parameters, vector<Atom> &Atoms)
 
 }
 
-void setInitialMomentum(Parameters &parameters, vector<Atom> &Atoms)
+void setInitialMomentum(const Parameters &parameters, vector<Atom> &Atoms)
 {
     Coor Psum = {0, 0, 0};
 
@@ -124,84 +123,86 @@ void setInitialMomentum(Parameters &parameters, vector<Atom> &Atoms)
     }
 }
 
-
-void setPotentialForcesAndPressure(Parameters &parameters, State &state)
+void setPotentialForcesAndPressure(const Parameters &parameters, State &state)
 {
 
-    state.V = 0;
-    state.T = 0;
-    state.P = 0;
+	state.V = 0;
+	state.T = 0;
+	state.P = 0;
 
-	for (auto & Atom : state.Atoms)
-    {
-        Atom.F = {0,0,0};
-    }
+	for (auto & atom : state.Atoms)
+	{
+		atom.F = { 0,0,0 };
+	}
 
-    for(int i = 0; i < parameters.N; i++)
-    {
-        state.V += calcPotentialS(parameters, calcVectorModulus(state.Atoms[i].r)); //potencjal od scianek (10)
+	for (int i = 0; i < parameters.N; i++)
+	{
+		double ri = calcVectorModulus(state.Atoms[i].r);
+		state.V += calcPotentialS(parameters, ri); //potencjal od scianek (10)
 
-        Coor Fis = calcForcesS(parameters, state.Atoms[i].r); //sily odpychania od scianek (14)
-        state.Atoms[i].F = addVectors(state.Atoms[i].F, Fis ); //akumulacja do F
-        state.P += calcVectorModulus(Fis) / 4. / PI / parameters.L / parameters.L; //akumulacja cisnienia chwilowego (15)
+		Coor Fis = calcForcesS(parameters, state.Atoms[i].r, ri); //sily odpychania od scianek (14)
+		state.Atoms[i].F = addVectors(state.Atoms[i].F, Fis); //akumulacja do F
 
-        for(int j = 0; j < i; j++)
-        {
-            double rij = calcVectorModulus( subtractVectors(state.Atoms[i].r, state.Atoms[j].r));
-            state.V += calcPotentialP(parameters, rij); //obliczanie potencjalu par (9) i akumulacja do V
-            Coor Fip = calcForcesP(parameters, state.Atoms[i].r, state.Atoms[j].r); //obliczanie sil miedzyAtomowych
+		state.P += calcVectorModulus(Fis); //akumulacja cisnienia chwilowego (15)
+
+
+		for (int j = 0; j < i; j++)
+		{
+			double rij = calcVectorModulus(subtractVectors(state.Atoms[i].r, state.Atoms[j].r));
+			double rRatio = parameters.R / rij;
+			double rRatioPow6 = rRatio * rRatio * rRatio * rRatio * rRatio * rRatio;
+			state.V += calcPotentialP(parameters, rRatioPow6); //obliczanie potencjalu par (9) i akumulacja do V
+
+			Coor Fip = calcForcesP(parameters, state.Atoms[i].r, state.Atoms[j].r, rRatioPow6); //obliczanie sil miedzyatomowych
 			state.Atoms[i].F = addVectors(state.Atoms[i].F, Fip); //  akumulacja do Fi
-            state.Atoms[j].F = addVectors(state.Atoms[j].F, calcOppositeVector(Fip)); // akuulacja do Fj
-        }
+			state.Atoms[j].F = addVectors(state.Atoms[j].F, calcOppositeVector(Fip)); // akuulacja do Fj
+		}
 
-    }
+	}
+	state.P /= (4 * PI * parameters.L * parameters.L);
 }
 
-double calcPotentialS(Parameters &parameters, double ri)
+double calcPotentialS(const Parameters &parameters, double ri)
 {
-    if(ri <= parameters.L)
-        return 0;
+	if (ri <= parameters.L)
+		return 0;
 
-    return (0.5 * parameters.f * (ri - parameters.L) * (ri - parameters.L));
+	return (0.5 * parameters.f * (ri - parameters.L) * (ri - parameters.L));
 }
 
-double calcPotentialP(Parameters &parameters, double rij)
+double calcPotentialP(const Parameters &parameters, double rRatioPow6)
 {
-    double rRatio = parameters.R / rij;
-
-    return parameters.e * (pow( rRatio , 12 ) - 2 * pow(rRatio, 6) );
+	return parameters.e * (rRatioPow6 * rRatioPow6 - 2 * rRatioPow6);
 }
 
-Coor calcForcesP(Parameters &parameters, Coor ri, Coor rj)
+Coor calcForcesP(const Parameters &parameters, Coor ri, Coor rj, double rRatioPow6)
 {
-    Coor riMinusrj = subtractVectors(ri, rj);
-    double rij = calcVectorModulus( riMinusrj );
-    double rRatio = parameters.R/rij;
+	Coor riMinusrj = subtractVectors(ri, rj);
 
-    double A = 12 * parameters.e * (pow( rRatio , 12 ) - pow(rRatio, 6) ) / (rij * rij);
+	double A = 12 * parameters.e * (rRatioPow6 * rRatioPow6 - rRatioPow6)
+		/ (riMinusrj.x * riMinusrj.x + riMinusrj.y * riMinusrj.y + riMinusrj.z * riMinusrj.z);
 
-    Coor Fij = {A * riMinusrj.x,
-                A * riMinusrj.y,
-                A * riMinusrj.z};
+	Coor Fij = { A * riMinusrj.x,
+				 A * riMinusrj.y,
+				 A * riMinusrj.z };
 
-    return Fij;
+	return Fij;
 }
 
-Coor calcForcesS(Parameters &parameters, Coor ri)
+Coor calcForcesS(const Parameters &parameters, Coor ri, double mri)
 {
-    double mri = calcVectorModulus(ri);
-    Coor fS = {0, 0, 0};
+	Coor fS = { 0, 0, 0 };
 
-    if(mri > parameters.L)
-    {
-        double A  = parameters.f * (parameters.L - mri)  / mri;
-        fS = {ri.x * A, ri.y * A, ri.z * A};
-    }
+	if (mri > parameters.L)
+	{
+		double A = parameters.f * (parameters.L - mri) / mri;
+		fS = { ri.x * A, ri.y * A, ri.z * A };
+	}
 
-    return fS;
+	return fS;
 }
 
-void simulate(Parameters &parameters, State &state, ofstream & outputFileXYZ, ofstream & outputFileChar)
+void simulate(const Parameters &parameters, State &state, ofstream & outputFileXYZ, ofstream & outputFileChar)
 {
     double t = 0;
 
@@ -219,7 +220,7 @@ void simulate(Parameters &parameters, State &state, ofstream & outputFileXYZ, of
 
 }
 
-void updateState(Parameters &parameters, State &state)
+void updateState(const Parameters &parameters, State &state)
 {
 
 	for (auto & Atom : state.Atoms)
@@ -251,19 +252,19 @@ void updateState(Parameters &parameters, State &state)
         };
     }
 
-    setEnergyAndTemperature(parameters, state);
+	setEnergyAndTemperature(parameters, state);
 }
 
-void setEnergyAndTemperature(Parameters &parameters, State &state)
+void setEnergyAndTemperature(const Parameters &parameters, State &state)
 {
     state.H = 0;
 
-    for(int i = 0; i < parameters.N; i++)
+	for (auto & Atom : state.Atoms)
     {
-        state.H += calcVectorModulus(state.Atoms[i].p) *
-                calcVectorModulus(state.Atoms[i].p) / 2. / parameters.m;
+        state.H += (Atom.p.x * Atom.p.x + Atom.p.y * Atom.p.y + Atom.p.z * Atom.p.z);
     }
 
+	state.H /= 2. * parameters.m;
     state.T = state.H * 2. / 3. / parameters.N / kB;
     state.H += state.V;
 }
@@ -295,8 +296,7 @@ void outputMomentum(vector<Atom> &Atoms)
 
 	for (auto & Atom : Atoms)
     {
-        outputFile << Atom.p.x << "\t" << Atom.p.y << "\t"
-                   << Atom.p.z << endl;
+        outputFile << Atom.p.x << "\t" << Atom.p.y << "\t" << Atom.p.z << endl;
     }
 
     outputFile.close();
@@ -304,7 +304,6 @@ void outputMomentum(vector<Atom> &Atoms)
 
 void outputChar(State & state, ofstream &outputFile, double &t)
 {
-    outputFile << t << "\t" << state.H << "\t" << state.V << "\t"
-               << state.T << "\t" << state.P << endl;
+    outputFile << t << "\t" << state.H << "\t" << state.V << "\t" << state.P << "\t" << state.T << endl;
 }
 
